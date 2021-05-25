@@ -704,12 +704,12 @@ contract ICO is ReentrancyGuard,Context2{
     }
 
   
-    function changeRatio(uint _ch) public {
+    function changeRatio(uint _ch) public onlyBeneficiary {
         require(beneficiary==msg.sender);
         ratio = _ch;
     }
 
-    function rusdtToKnab(uint _ch) public {
+    function rusdtToKnab(uint _ch) public onlyBeneficiary{
         require(beneficiary==msg.sender);
         ratio2 = _ch;
     }
