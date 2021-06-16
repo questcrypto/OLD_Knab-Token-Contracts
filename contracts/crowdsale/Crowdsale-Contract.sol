@@ -575,6 +575,8 @@ interface IERC20 {
      */
     function approve(address spender, uint256 amount) external returns (bool);
 
+    function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
+
     /**
      * @dev Moves `amount` tokens from `sender` to `recipient` using the
      * allowance mechanism. `amount` is then deducted from the caller's
@@ -669,14 +671,13 @@ abstract contract ReentrancyGuard {
 contract ICO is ReentrancyGuard,Context2{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
-    address public usdtToken;
+    address public usdcToken;
     address public knabToken;
     address  public beneficiary;
-    uint256 constant START_TIME = 1620655200;
-    uint256 constant END_TIME   = 1624543200;
+    uint256 constant START_TIME = 1623129394;
+    uint256 constant END_TIME   = 1623136790;
     uint public _amountRaised;
     uint ratio;
-    uint ratio2 = 0;
 
     event ICOInitialized(address beneficiary, uint256 timestamp);
 
@@ -690,29 +691,80 @@ contract ICO is ReentrancyGuard,Context2{
     }
 
     constructor(
-        address _tokenusdtAddress,
+        address _tokenusdcAddress,
         address _tokenknabAddress,
-        address  _beneficiary,
-        uint _ratio
+        address  _beneficiary
     )  {
         require(_beneficiary !=address(0),"beneficiary address cannot be zero");
-        usdtToken = (_tokenusdtAddress);
+        usdcToken = (_tokenusdcAddress);
         knabToken = (_tokenknabAddress);
         beneficiary = _beneficiary;
-        ratio = _ratio;
         emit ICOInitialized(_beneficiary, block.timestamp);
     }
 
-  
-    function changeRatio(uint _ch) public onlyBeneficiary {
-        require(beneficiary==msg.sender);
-        ratio = _ch;
+    function calculateTransferAmount (uint ar , uint arn) internal view returns (uint) {
+        if(ar <10000000*(10**18)){
+            if(arn>10000000*(10**18))
+            {
+                return (10000000*(10**18)-ar).mul(3).div(2).add(calculateTransferAmount(10000000*(10**18),arn));
+            }
+            else{
+                return arn.sub(ar).mul(3).div(2); 
+            }
+        }
+        else if(ar >= 10000000*(10**18) && ar < 20000000*(10**18)){
+            //return 7;
+            if(arn>20000000*(10**18))
+            {
+                return (20000000*(10**18)-ar).mul(7).div(5).add(calculateTransferAmount(20000000*(10**18),arn));
+            }
+            else{
+                return arn.sub(ar).mul(7).div(5); 
+            }
+        }
+        else if(ar >= 20000000*(10**18) && ar < 30000000*(10**18)){
+            ///return 13;
+            if(arn>30000000*(10**18))
+            {
+                return (30000000*(10**18)-ar).mul(13).div(10).add(calculateTransferAmount(30000000*(10**18),arn));
+            }
+            else{
+                return arn.sub(ar).mul(13).div(10); 
+            }
+        }
+        else if(ar >= 30000000*(10**18) && ar < 40000000*(10**18)){
+            //return 12;
+            if(arn>40000000*(10**18))
+            {
+                return (40000000*(10**18)-ar).mul(12).div(10).add(calculateTransferAmount(40000000*(10**18),arn));
+            }
+            else{
+                return arn.sub(ar).mul(12).div(10); 
+            }
+        }
+        else if(ar >= 40000000*(10**18) && ar <= 80000000*(10**18)){
+            //return 23;
+            if(arn>80000000*(10**18))
+            {
+                return (80000000*(10**18)-ar).mul(115).div(100).add(calculateTransferAmount((80000000*(10**18))+1,arn));
+            }
+            else{
+                return arn.sub(ar).mul(115).div(100); 
+            }
+        }
+        else {
+            //return 0;
+            return arn.sub(ar); 
+        }
     }
-
-    function rusdtToKnab(uint _ch) public onlyBeneficiary{
-        require(beneficiary==msg.sender);
-        ratio2 = _ch;
-    }
+//    function calculateRatiodenum () internal view returns (uint){
+//        if(_amountRaised <=10000000*(10**18)){return 2;}
+//        else if(_amountRaised > 10000000*(10**18) && _amountRaised <= 20000000*(10**18)){return 5;}
+//        else if(_amountRaised > 20000000*(10**18) && _amountRaised <= 30000000*(10**18)){return 10;}
+//        else if(_amountRaised > 30000000*(10**18) && _amountRaised <= 40000000*(10**18)){return 10;}
+//        else if(_amountRaised > 40000000*(10**18) && _amountRaised <= 80000000*(10**18)){return 20;}
+//        else {return 1;}
+//    }
 
     function buy(uint256 _amount) public nonReentrant {
         
@@ -723,28 +775,15 @@ contract ICO is ReentrancyGuard,Context2{
        
         
         // calculate token amount to be created
-
-        if (block.timestamp <= START_TIME.add(7 days)){
-            if(ratio2==0){
-                transferAmount = _amount.mul(60).div(100).add(_amount).mul(ratio);
-            }
-            else{
-                    transferAmount = _amount.mul(60).div(100).add(_amount).div(ratio2);
-            }
-        }
-        else{
-            if(ratio2==0){
-                transferAmount = _amount.mul(ratio);
-            }
-            else{
-                transferAmount = _amount.div(ratio2);
-            }
-        }
+        uint ar = _amountRaised;
+        uint arn = _amount.add(_amountRaised);
+        transferAmount = calculateTransferAmount(ar,arn);
         
+        require(transferAmount<= IERC20(knabToken).balanceOf(address(this)),"!sufficient knab funds enter a lower value");
         emit Buy(_msgSender(), _amount, transferAmount);
-
-        //transfer usdt token from user to contract
-        IERC20(usdtToken).safeTransferFrom(_msgSender(), address(this), _amount);
+        require(IERC20(usdcToken).allowance(msg.sender,address(this))>0,"insufficient allowance of dai tokens");
+        //transfer usdc token from user to contract
+        IERC20(usdcToken).safeTransferFrom(_msgSender(), address(this), _amount);
         
         //transfer knab token from contract to user
         IERC20(knabToken).safeTransfer(_msgSender(), transferAmount);
@@ -752,22 +791,21 @@ contract ICO is ReentrancyGuard,Context2{
         update(_amount);
     }
 
-
-    function update (uint256 _weiAmount) internal{
-        emit amountRaisedUpdated(_amountRaised,_amountRaised.add(_weiAmount));
-        _amountRaised=_amountRaised.add(_weiAmount);
+    function update (uint256 _Amount) internal{
+        emit amountRaisedUpdated(_amountRaised,_amountRaised.add(_Amount));
+        _amountRaised=_amountRaised.add(_Amount);
         
     }
  
     function fundTransfer(uint256 _amountTransfer) public onlyBeneficiary{
         require(_msgSender() !=address(0),"beneficiary address cannot be null");
         require(_amountTransfer>0,"transfer amount must be greater than 0");
-        IERC20(usdtToken).safeTransfer(_msgSender(),_amountTransfer);
+        IERC20(usdcToken).safeTransfer(_msgSender(),_amountTransfer);
     }
     
     function crowdSaleEnd() public onlyBeneficiary{
         require(block.timestamp > END_TIME,"!!CrowdSale not Ended");
-        require(IERC20(knabToken).balanceOf(address(this)) != 0,"No TENFI is available to withdraw");
+        require(IERC20(knabToken).balanceOf(address(this)) != 0,"No KNAB is available to withdraw");
         IERC20(knabToken).safeTransfer(_msgSender(),IERC20(knabToken).balanceOf(address(this)));
     }
 
