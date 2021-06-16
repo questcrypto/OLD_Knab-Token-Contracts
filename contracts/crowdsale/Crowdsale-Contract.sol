@@ -674,11 +674,11 @@ contract ICO is ReentrancyGuard,Context2{
     address public usdcToken;
     address public knabToken;
     address  public beneficiary;
-    uint256 constant START_TIME = 1623129394;
-    uint256 constant END_TIME   = 1623136790;
+    uint256 constant START_TIME = 1623646591;
+    uint256 constant END_TIME   = 1627603200;
     uint public _amountRaised;
-    uint ratio;
-
+    uint public transferAmount;
+    uint public tokenSold=0;
     event ICOInitialized(address beneficiary, uint256 timestamp);
 
     event Buy(address indexed , uint256 amount, uint256 token );
@@ -766,12 +766,22 @@ contract ICO is ReentrancyGuard,Context2{
 //        else {return 1;}
 //    }
 
+    function KnabAmount(uint _amount)public view returns (uint){
+        uint ar = _amountRaised;
+        uint arn = _amount.add(_amountRaised);
+        return calculateTransferAmount(ar,arn);
+    }
+    
+    function details() public view returns (uint,uint){
+        return (tokenSold,IERC20(knabToken).balanceOf(address(this)));
+    }
+
     function buy(uint256 _amount) public nonReentrant {
         
         require(START_TIME <= block.timestamp,"ICO not started yet");
         require(END_TIME >= block.timestamp,"ICO already ended");
         require(_amount>0,"_amount must be greater than 0");
-        uint transferAmount;
+        
        
         
         // calculate token amount to be created
@@ -787,7 +797,7 @@ contract ICO is ReentrancyGuard,Context2{
         
         //transfer knab token from contract to user
         IERC20(knabToken).safeTransfer(_msgSender(), transferAmount);
-        
+        tokenSold += transferAmount;
         update(_amount);
     }
 
