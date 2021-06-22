@@ -1,6 +1,0 @@
-node_modules
-build
-contracts/staking
-test
-bin 
-migrations
