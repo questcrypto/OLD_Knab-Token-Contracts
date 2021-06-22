@@ -675,7 +675,7 @@ contract ICO is ReentrancyGuard,Context2{
     address public knabToken;
     address  public beneficiary;
     uint256 constant START_TIME = 1623646591;
-    uint256 constant END_TIME   = 1627603200;
+    uint256 constant END_TIME   = 1627720859;
     uint public _amountRaised;
     uint public transferAmount;
     uint public tokenSold=0;
@@ -793,7 +793,7 @@ contract ICO is ReentrancyGuard,Context2{
         emit Buy(_msgSender(), _amount, transferAmount);
         require(IERC20(usdcToken).allowance(msg.sender,address(this))>0,"insufficient allowance of dai tokens");
         //transfer usdc token from user to contract
-        IERC20(usdcToken).safeTransferFrom(_msgSender(), address(this), _amount);
+        IERC20(usdcToken).safeTransferFrom(_msgSender(), address(this), _amount.div(10**12));
         
         //transfer knab token from contract to user
         IERC20(knabToken).safeTransfer(_msgSender(), transferAmount);
