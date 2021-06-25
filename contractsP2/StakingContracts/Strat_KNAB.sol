@@ -1116,8 +1116,6 @@ abstract contract StratX2 is Ownable, ReentrancyGuard, Pausable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    address public farmContractAddress; // address of farm, eg, PCS, Thugs etc.
-    uint256 public pid; // pid of pool in farmContractAddress
     address public wantAddress;
 
 
@@ -1186,7 +1184,6 @@ contract StratX2_KNAB is StratX2 {
 
     constructor(
         address[] memory _addresses,
-        uint256 _pid,
         uint256 _minTimeToWithdraw
     ) public {
         
@@ -1196,8 +1193,6 @@ contract StratX2_KNAB is StratX2 {
 
         wantAddress = _addresses[3];
 
-        farmContractAddress = _addresses[7];
-        pid = _pid;
 
         minTimeToWithdraw = _minTimeToWithdraw;
 
