@@ -1229,8 +1229,10 @@ contract AaveStrategy is StratX2 {
     uint256 public constant DENOMINATOR = 10000;
 
     uint256 public depositSlip = 100;
+    uint256 public withdrawSlip = 100;
 
     address public loanWallet;
+    uint256 public loanpercent = 3000;
     uint256 minTimeToWithdraw;
     uint256 minTimeToWithdrawLoan;
 
@@ -1238,7 +1240,7 @@ contract AaveStrategy is StratX2 {
     uint256 public minTimeToWithdrawLoanUL = 1209600; // 2 weeks
 
     mapping(address => uint256) public amountLoan;
-    mapping(address => bool) public paymentrecieved;
+    mapping(address => uint256) public paymentrecieved;
 
     // mapping (address =>AmountReturn) public returnDetails;
     // struct AmountReturn{
@@ -1250,6 +1252,9 @@ contract AaveStrategy is StratX2 {
         uint256 newMinTimeToWithdraw,
         uint256 oldMinTimeToWithdraw2,
         uint256 newMinTimeToWithdraw2
+    );
+    event loanPercentChanged(
+        uint256 loanpercent
     );
 
     modifier onlyAuthorized() {
@@ -1307,6 +1312,10 @@ contract AaveStrategy is StratX2 {
         loanWallet = _wallet;
     }
 
+    function changeLoanNum(uint256 num) external onlyGov {
+        loanpercent = num;
+        emit loanPercentChanged(num.div(10000));
+    }
 
     function changeDepositSlip(uint256 _value) external onlyGov() {
         depositSlip = _value;
@@ -1330,8 +1339,8 @@ contract AaveStrategy is StratX2 {
             amount
         );
         userLastDepositedTimestamp[_userAddress] = block.timestamp;
-        deposit2(_userAddress, amount.mul(30).div(100));
-        amount = amount - amount.mul(30).div(100);
+        deposit2(_userAddress, amount.mul(loanpercent).div(10000));
+        amount = amount - amount.mul(loanpercent).div(10000);
         uint256 sharesAdded = amount;
         sharesTotal = sharesTotal.add(sharesAdded);
         farm(amount);
@@ -1346,37 +1355,44 @@ contract AaveStrategy is StratX2 {
         }
     }
 
-    function withdraw2(address _user) public nonReentrant onlyFarm() {
+    function withdraw2(address _user, uint amount) public nonReentrant onlyFarm() {
         require(
             ((userLastDepositedTimestamp[_user].add(minTimeToWithdrawLoan)) <
-                block.timestamp) || paymentrecieved[_user],
+                block.timestamp) || paymentrecieved[_user]>0,
             "too early!"
         );
+        require(amount <= paymentrecieved[_user],'Amount exceeded');
+        
         require(
-            amountLoan[_user] > 0,
-            "Your amount has already been withdrawn"
-        );
-        uint256 amtreturn =
-            amountLoan[_user].add(amountLoan[_user].mul(7).div(200));
-        require(
-            tokens[0].balanceOf(address(this)) > amtreturn,
+            tokens[0].balanceOf(address(this)) >= amount,
             "Insufficient funds in contract... Contact owner"
         );
-        tokens[0].safeTransfer(_user, amtreturn);
+        tokens[0].safeTransfer(_user, amount);
+        paymentrecieved[_user] -= amount;
+    }
+
+    function withdrawloanall(address _user) public onlyFarm(){
+        withdraw2(_user, paymentrecieved[_user]);
+    }
+
+    function updateLoan(address _user) public returns(uint){
+        amountLoan[_user]=amountLoan[_user].add(
+                amountLoan[_user].mul((block.timestamp.sub(userLastDepositedTimestamp[_user])).div(2628000)).div(1200));
+                return amountLoan[_user];
+    }
+
+    function payback(address _user) public {
+        updateLoan(_user);
+        tokens[0].safeTransferFrom(msg.sender, address(this), amountLoan[_user]);
+        paymentrecieved[_user] = amountLoan[_user];
         amountLoan[_user] = 0;
     }
 
-    function payback(address _user, uint256 months) public {
-        uint256 amtreturn =
-            amountLoan[_user].add(
-                amountLoan[_user].mul(7).mul(months).div(1200)
-            );
-        tokens[0].safeTransferFrom(msg.sender, address(this), amtreturn);
-        paymentrecieved[_user] = true;
-    }
-
     //withdraws stable tokens from the aave pool.Unstake required LPtokens and stake LP tokens if not used.
-    function withdraw(address _userAddress, uint256 amount)
+    function withdraw(address _userAddress,
+    uint256 amount
+    ,uint256 bamount
+    )
         public
         nonReentrant
         whenNotPaused
@@ -1390,20 +1406,14 @@ contract AaveStrategy is StratX2 {
         );
         uint256[N_COINS] memory amounts = [amount, 0, 0];
         
-        pool.remove_liquidity_imbalance(amounts, 0, true);
-        uint256 wantAmt = tokens[0].balanceOf(address(this));
+        _unfarm(bamount);
+        
+        pool.remove_liquidity_imbalance(amounts, 
+        bamount
+        , true);
 
-        uint256 sharesRemoved = amount;
-        if (sharesRemoved > sharesTotal) {
-            sharesRemoved = sharesTotal;
-        }
+        uint256 sharesRemoved = amount.div(wantLockedTotal).mul(sharesTotal);
         sharesTotal = sharesTotal.sub(sharesRemoved);
-        if (amount > wantAmt) {
-            amount = wantAmt;
-        }
-        if (wantLockedTotal < amount) {
-            amount = wantLockedTotal;
-        }
 
         if (amounts[0] != 0) {
             tokens[0].safeTransfer(KNABRFarmAddress, amount);
@@ -1439,7 +1449,7 @@ contract AaveStrategy is StratX2 {
     //     return withdrawAmt;
     // }
 
-    function farm(uint256 amount) internal nonReentrant whenNotPaused {
+    function farm(uint256 amount) internal  {
         uint256 decimal;
         decimal = tokens[0].decimals();
         tokens[0].safeApprove(address(pool), 0);
@@ -1492,12 +1502,12 @@ contract AaveStrategy is StratX2 {
     }
 
     //function for claiming historic rewards
-    function claimHistoricReward(address[8] memory _rewardTokens)
-        external
-        onlyGov()
-    {
-        gauge.claim_historic_rewards(_rewardTokens);
-    }
+    //function claimHistoricReward(address[8] memory _rewardTokens)
+    //    external
+    //    onlyGov()
+   //{
+     //   gauge.claim_historic_rewards(_rewardTokens);
+    //}
 
     function swapWMatic(uint256 _amount, uint256 _minimumAmount) internal {
         require(
