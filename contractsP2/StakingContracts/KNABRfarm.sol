@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.12;
-import "./tokens/KnabrToken.sol";
+import "./token/KnabrToken.sol";
 
 library SafeERC20 {
     using SafeMath for uint256;
@@ -961,16 +961,20 @@ interface IStrategy {
         external
         returns (uint256);
 
-    function withdraw2(address _user,uint amount) external;
+    function withdraw2(address _user, uint256 amount) external;
+
     function withdrawloanall(address _user) external;
 
     // Transfer want tokens strategy -> KNABRFarm
     function withdraw(address _userAddress, uint256 _wantAmt)
         external
         returns (uint256);
-    function withdraw(address _userAddress, uint256 _wantAmt, uint bamount)
-        external
-        returns (uint256);
+
+    function withdraw(
+        address _userAddress,
+        uint256 _wantAmt,
+        uint256 bamount
+    ) external returns (uint256);
 
     function inCaseTokensGetStuck(
         address _token,
@@ -1238,9 +1242,13 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         user.rewardDebt = user.shares.mul(pool.accKNABRPerShare).div(1e12);
         emit Withdraw(msg.sender, _pid, _wantAmt);
     }
-    
+
     //withdrawal function for aaveStrategy
-    function withdraw2(uint256 _pid, uint256 _wantAmt,uint bamount) public nonReentrant {
+    function withdraw2(
+        uint256 _pid,
+        uint256 _wantAmt,
+        uint256 bamount
+    ) public nonReentrant {
         updatePool(_pid);
 
         PoolInfo storage pool = poolInfo[_pid];
@@ -1313,17 +1321,25 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         withdraw(_pid, uint256(-1));
     }
 
-    function withdrawLoan(uint256 _pid,uint amount) public nonReentrant {
-        IStrategy(poolInfo[_pid].strat).withdraw2(msg.sender,amount);
+    function withdrawLoan(uint256 _pid, uint256 amount) public nonReentrant {
+        IStrategy(poolInfo[_pid].strat).withdraw2(msg.sender, amount);
     }
+
     function withdrawLoanAll(uint256 _pid) public nonReentrant {
         IStrategy(poolInfo[_pid].strat).withdrawloanall(msg.sender);
     }
 
-    function calculatePartition(uint _pid,address _strat) public view returns (uint) {
+    function calculatePartition(uint256 _pid, address _strat)
+        public
+        view
+        returns (uint256)
+    {
         UserInfo storage user = userInfo[_pid][msg.sender];
         uint256 sharesTotal = IStrategy(poolInfo[_pid].strat).sharesTotal();
-        return IStrategy(_strat).wantLockedTotal().mul(user.shares).div(sharesTotal);
+        return
+            IStrategy(_strat).wantLockedTotal().mul(user.shares).div(
+                sharesTotal
+            );
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
