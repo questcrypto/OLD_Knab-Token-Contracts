@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity 0.6.12;
-import './token/KnabrToken.sol';
+import "./tokens/KnabrToken.sol";
 
 library SafeERC20 {
     using SafeMath for uint256;
@@ -61,8 +61,9 @@ library SafeERC20 {
         address spender,
         uint256 value
     ) internal {
-        uint256 newAllowance =
-            token.allowance(address(this), spender).add(value);
+        uint256 newAllowance = token.allowance(address(this), spender).add(
+            value
+        );
         _callOptionalReturn(
             token,
             abi.encodeWithSelector(
@@ -78,11 +79,10 @@ library SafeERC20 {
         address spender,
         uint256 value
     ) internal {
-        uint256 newAllowance =
-            token.allowance(address(this), spender).sub(
-                value,
-                "SafeERC20: decreased allowance below zero"
-            );
+        uint256 newAllowance = token.allowance(address(this), spender).sub(
+            value,
+            "SafeERC20: decreased allowance below zero"
+        );
         _callOptionalReturn(
             token,
             abi.encodeWithSelector(
@@ -104,11 +104,10 @@ library SafeERC20 {
         // we're implementing it ourselves. We use {Address.functionCall} to perform this call, which verifies that
         // the target address contains contract code and also asserts for success in the low-level call.
 
-        bytes memory returndata =
-            address(token).functionCall(
-                data,
-                "SafeERC20: low-level call failed"
-            );
+        bytes memory returndata = address(token).functionCall(
+            data,
+            "SafeERC20: low-level call failed"
+        );
         if (returndata.length > 0) {
             // Return data is optional
             // solhint-disable-next-line max-line-length
@@ -119,6 +118,7 @@ library SafeERC20 {
         }
     }
 }
+
 library SafeMath {
     /**
      * @dev Returns the addition of two unsigned integers, reverting on
@@ -273,6 +273,7 @@ library SafeMath {
         return a % b;
     }
 }
+
 library EnumerableSet {
     // To implement this library for multiple types with as little code
     // repetition as possible, we write it in terms of a generic Set type with
@@ -591,6 +592,7 @@ library EnumerableSet {
         return uint256(_at(set._inner, index));
     }
 }
+
 abstract contract Ownable is Context {
     address private _owner;
 
@@ -648,6 +650,7 @@ abstract contract Ownable is Context {
         _owner = newOwner;
     }
 }
+
 abstract contract ReentrancyGuard {
     // Booleans are more expensive than uint256 or any type that takes up a full
     // word because each write operation emits an extra SLOAD to first read the
@@ -690,9 +693,11 @@ abstract contract ReentrancyGuard {
         _status = _NOT_ENTERED;
     }
 }
+
 interface IKNABR {
     function mint(address _to, uint256 _amount) external;
 }
+
 library Address {
     /**
      * @dev Returns true if `account` is a contract.
@@ -837,8 +842,9 @@ library Address {
         require(isContract(target), "Address: call to non-contract");
 
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) =
-            target.call{value: value}(data);
+        (bool success, bytes memory returndata) = target.call{value: value}(
+            data
+        );
         return _verifyCallResult(success, returndata, errorMessage);
     }
 
@@ -939,7 +945,6 @@ library Address {
     }
 }
 
-
 // For interacting with our own strategy
 interface IStrategy {
     // Total want tokens managed by stratfegy
@@ -955,9 +960,15 @@ interface IStrategy {
     function deposit(address _userAddress, uint256 _wantAmt)
         external
         returns (uint256);
-    function withdraw2(address _user) external ;
+
+    function withdraw2(address _user,uint amount) external;
+    function withdrawloanall(address _user) external;
+
     // Transfer want tokens strategy -> KNABRFarm
     function withdraw(address _userAddress, uint256 _wantAmt)
+        external
+        returns (uint256);
+    function withdraw(address _userAddress, uint256 _wantAmt, uint bamount)
         external
         returns (uint256);
 
@@ -990,7 +1001,7 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
     address public KNABR;
     uint256 public KNABRMaxSupply = 80000e18;
     uint256 public KNABRPerBlock = 8000000000000000; // KnabR tokens created per block
-    uint256 public startBlock = 16044166; //https://polygonscan.com/blocks
+    uint256 public startBlock = 15792239; //https://polygonscan.com/blocks
 
     PoolInfo[] public poolInfo; // Info of each pool.
     mapping(uint256 => mapping(address => UserInfo)) public userInfo; // Info of each user that stakes LP tokens.
@@ -1003,8 +1014,9 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         uint256 indexed pid,
         uint256 amount
     );
-    constructor() public{
-       KNABR = address(new KnabrToken());
+
+    constructor() public {
+        KNABR = address(new KnabrToken());
     }
 
     function poolLength() external view returns (uint256) {
@@ -1022,8 +1034,9 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         if (_withUpdate) {
             massUpdatePools();
         }
-        uint256 lastRewardBlock =
-            block.number > startBlock ? block.number : startBlock;
+        uint256 lastRewardBlock = block.number > startBlock
+            ? block.number
+            : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         poolInfo.push(
             PoolInfo({
@@ -1074,12 +1087,14 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         uint256 accKNABRPerShare = pool.accKNABRPerShare;
         uint256 sharesTotal = IStrategy(pool.strat).sharesTotal();
         if (block.number > pool.lastRewardBlock && sharesTotal != 0) {
-            uint256 multiplier =
-                getMultiplier(pool.lastRewardBlock, block.number);
-            uint256 KNABReward =
-                multiplier.mul(KNABRPerBlock).mul(pool.allocPoint).div(
-                    totalAllocPoint
-                );
+            uint256 multiplier = getMultiplier(
+                pool.lastRewardBlock,
+                block.number
+            );
+            uint256 KNABReward = multiplier
+            .mul(KNABRPerBlock)
+            .mul(pool.allocPoint)
+            .div(totalAllocPoint);
             accKNABRPerShare = accKNABRPerShare.add(
                 KNABReward.mul(1e12).div(sharesTotal)
             );
@@ -1097,8 +1112,8 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][_user];
 
         uint256 sharesTotal = IStrategy(pool.strat).sharesTotal();
-        uint256 wantLockedTotal =
-            IStrategy(poolInfo[_pid].strat).wantLockedTotal();
+        uint256 wantLockedTotal = IStrategy(poolInfo[_pid].strat)
+        .wantLockedTotal();
         if (sharesTotal == 0) {
             return 0;
         }
@@ -1128,15 +1143,10 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         if (multiplier <= 0) {
             return;
         }
-        uint256 KNABReward =
-            multiplier.mul(KNABRPerBlock).mul(pool.allocPoint).div(
-                totalAllocPoint
-            );
-        //mints knabr/100 for owner
-        IKNABR(KNABR).mint(
-            owner(),
-            KNABReward.div(1000)
-        );
+        uint256 KNABReward = multiplier
+        .mul(KNABRPerBlock)
+        .mul(pool.allocPoint)
+        .div(totalAllocPoint);
 
         IKNABR(KNABR).mint(address(this), KNABReward);
 
@@ -1153,10 +1163,11 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][msg.sender];
 
         if (user.shares > 0) {
-            uint256 pending =
-                user.shares.mul(pool.accKNABRPerShare).div(1e12).sub(
-                    user.rewardDebt
-                );
+            uint256 pending = user
+            .shares
+            .mul(pool.accKNABRPerShare)
+            .div(1e12)
+            .sub(user.rewardDebt);
             if (pending > 0) {
                 safeKNABRTransfer(msg.sender, pending);
             }
@@ -1169,8 +1180,10 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
             );
 
             pool.want.safeIncreaseAllowance(pool.strat, _wantAmt);
-            uint256 sharesAdded =
-                IStrategy(poolInfo[_pid].strat).deposit(msg.sender, _wantAmt);
+            uint256 sharesAdded = IStrategy(poolInfo[_pid].strat).deposit(
+                msg.sender,
+                _wantAmt
+            );
             user.shares = user.shares.add(sharesAdded);
         }
         user.rewardDebt = user.shares.mul(pool.accKNABRPerShare).div(1e12);
@@ -1184,18 +1197,17 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
 
-        uint256 wantLockedTotal =
-            IStrategy(poolInfo[_pid].strat).wantLockedTotal();
+        uint256 wantLockedTotal = IStrategy(poolInfo[_pid].strat)
+        .wantLockedTotal();
         uint256 sharesTotal = IStrategy(poolInfo[_pid].strat).sharesTotal();
 
         require(user.shares > 0, "user.shares is 0");
         require(sharesTotal > 0, "sharesTotal is 0");
 
         // Withdraw pending KNABR
-        uint256 pending =
-            user.shares.mul(pool.accKNABRPerShare).div(1e12).sub(
-                user.rewardDebt
-            );
+        uint256 pending = user.shares.mul(pool.accKNABRPerShare).div(1e12).sub(
+            user.rewardDebt
+        );
         if (pending > 0) {
             safeKNABRTransfer(msg.sender, pending);
         }
@@ -1206,8 +1218,60 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
             _wantAmt = amount;
         }
         if (_wantAmt > 0) {
-            uint256 sharesRemoved =
-                IStrategy(poolInfo[_pid].strat).withdraw(msg.sender, _wantAmt);
+            uint256 sharesRemoved = IStrategy(poolInfo[_pid].strat).withdraw(
+                msg.sender,
+                _wantAmt
+            );
+
+            if (sharesRemoved > user.shares) {
+                user.shares = 0;
+            } else {
+                user.shares = user.shares.sub(sharesRemoved);
+            }
+
+            uint256 wantBal = IERC20(pool.want).balanceOf(address(this));
+            if (wantBal < _wantAmt) {
+                _wantAmt = wantBal;
+            }
+            pool.want.safeTransfer(address(msg.sender), _wantAmt);
+        }
+        user.rewardDebt = user.shares.mul(pool.accKNABRPerShare).div(1e12);
+        emit Withdraw(msg.sender, _pid, _wantAmt);
+    }
+    
+    //withdrawal function for aaveStrategy
+    function withdraw2(uint256 _pid, uint256 _wantAmt,uint bamount) public nonReentrant {
+        updatePool(_pid);
+
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+
+        uint256 wantLockedTotal = IStrategy(poolInfo[_pid].strat)
+        .wantLockedTotal();
+        uint256 sharesTotal = IStrategy(poolInfo[_pid].strat).sharesTotal();
+
+        require(user.shares > 0, "user.shares is 0");
+        require(sharesTotal > 0, "sharesTotal is 0");
+
+        // Withdraw pending KNABR
+        uint256 pending = user.shares.mul(pool.accKNABRPerShare).div(1e12).sub(
+            user.rewardDebt
+        );
+        if (pending > 0) {
+            safeKNABRTransfer(msg.sender, pending);
+        }
+
+        // Withdraw want tokens
+        uint256 amount = user.shares.mul(wantLockedTotal).div(sharesTotal);
+        if (_wantAmt > amount) {
+            _wantAmt = amount;
+        }
+        if (_wantAmt > 0) {
+            uint256 sharesRemoved = IStrategy(poolInfo[_pid].strat).withdraw(
+                msg.sender,
+                _wantAmt,
+                bamount
+            );
 
             if (sharesRemoved > user.shares) {
                 user.shares = 0;
@@ -1225,12 +1289,43 @@ contract KNABRFarm is Ownable, ReentrancyGuard {
         emit Withdraw(msg.sender, _pid, _wantAmt);
     }
 
-    function withdrawAll(uint256 _pid) public nonReentrant {
+    function harvestKNABR(uint256 _pid) public {
+        updatePool(_pid);
+
+        PoolInfo storage pool = poolInfo[_pid];
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        uint256 sharesTotal = IStrategy(poolInfo[_pid].strat).sharesTotal();
+
+        if (user.shares > 0 && sharesTotal > 0) {
+            uint256 pending = user
+            .shares
+            .mul(pool.accKNABRPerShare)
+            .div(1e12)
+            .sub(user.rewardDebt);
+            if (pending > 0) {
+                safeKNABRTransfer(msg.sender, pending);
+            }
+            user.rewardDebt = user.shares.mul(pool.accKNABRPerShare).div(1e12);
+        }
+    }
+
+    function withdrawAll(uint256 _pid) public {
         withdraw(_pid, uint256(-1));
     }
-    function withdrawLoan(uint _pid) public nonReentrant{
-        IStrategy(poolInfo[_pid].strat).withdraw2(msg.sender);
+
+    function withdrawLoan(uint256 _pid,uint amount) public nonReentrant {
+        IStrategy(poolInfo[_pid].strat).withdraw2(msg.sender,amount);
     }
+    function withdrawLoanAll(uint256 _pid) public nonReentrant {
+        IStrategy(poolInfo[_pid].strat).withdrawloanall(msg.sender);
+    }
+
+    function calculatePartition(uint _pid,address _strat) public view returns (uint) {
+        UserInfo storage user = userInfo[_pid][msg.sender];
+        uint256 sharesTotal = IStrategy(poolInfo[_pid].strat).sharesTotal();
+        return IStrategy(_strat).wantLockedTotal().mul(user.shares).div(sharesTotal);
+    }
+
     // Withdraw without caring about rewards. EMERGENCY ONLY.
     // function emergencyWithdraw(uint256 _pid) public nonReentrant {
     //     PoolInfo storage pool = poolInfo[_pid];
