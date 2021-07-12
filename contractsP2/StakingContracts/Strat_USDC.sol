@@ -1382,9 +1382,10 @@ contract AaveStrategy is StratX2 {
     }
 
     function payback(address _user) public {
+        require(amountLoan[_user]>0,'No debt left');
         updateLoan(_user);
         tokens[0].safeTransferFrom(msg.sender, address(this), amountLoan[_user]);
-        paymentrecieved[_user] = amountLoan[_user];
+        paymentrecieved[_user] += amountLoan[_user];
         amountLoan[_user] = 0;
     }
 
@@ -1502,12 +1503,12 @@ contract AaveStrategy is StratX2 {
     }
 
     //function for claiming historic rewards
-    //function claimHistoricReward(address[8] memory _rewardTokens)
-    //    external
-    //    onlyGov()
-   //{
-     //   gauge.claim_historic_rewards(_rewardTokens);
-    //}
+    function claimHistoricReward(address[8] memory _rewardTokens)
+        external
+        onlyGov()
+    {
+        gauge.claim_historic_rewards(_rewardTokens);
+    }
 
     function swapWMatic(uint256 _amount, uint256 _minimumAmount) internal {
         require(
