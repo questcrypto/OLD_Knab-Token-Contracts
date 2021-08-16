@@ -667,6 +667,10 @@ abstract contract ReentrancyGuard {
     }
 }
 
+interface ITokenTracker{
+    function increase(uint index,string memory refId,uint amount) external;
+}
+
 
 contract ICO is ReentrancyGuard,Context2{
     using SafeMath for uint256;
@@ -675,10 +679,13 @@ contract ICO is ReentrancyGuard,Context2{
     address public knabToken;
     address  public beneficiary;
     uint256 constant START_TIME = 1623646591;
-    uint256 constant END_TIME   = 1627720859;
+    uint256 constant END_TIME   = 1627603200;
+    uint256 ENDED = 0;
     uint public _amountRaised;
     uint public transferAmount;
     uint public tokenSold=0;
+    uint public index;
+    address public tokenTracker;
     event ICOInitialized(address beneficiary, uint256 timestamp);
 
     event Buy(address indexed , uint256 amount, uint256 token );
@@ -693,12 +700,16 @@ contract ICO is ReentrancyGuard,Context2{
     constructor(
         address _tokenusdcAddress,
         address _tokenknabAddress,
-        address  _beneficiary
+        address  _beneficiary,
+        address _tokenTracker,
+        uint _index
     )  {
         require(_beneficiary !=address(0),"beneficiary address cannot be zero");
         usdcToken = (_tokenusdcAddress);
         knabToken = (_tokenknabAddress);
         beneficiary = _beneficiary;
+        index = _index;
+        tokenTracker=_tokenTracker;
         emit ICOInitialized(_beneficiary, block.timestamp);
     }
 
@@ -776,10 +787,9 @@ contract ICO is ReentrancyGuard,Context2{
         return (tokenSold,IERC20(knabToken).balanceOf(address(this)));
     }
 
-    function buy(uint256 _amount) public nonReentrant {
+    function buy(uint256 _amount,string memory refId) public nonReentrant {
         
-        require(START_TIME <= block.timestamp,"ICO not started yet");
-        require(END_TIME >= block.timestamp,"ICO already ended");
+        require(ENDED==0,"ICO already ended");
         require(_amount>0,"_amount must be greater than 0");
         
        
@@ -798,6 +808,9 @@ contract ICO is ReentrancyGuard,Context2{
         //transfer knab token from contract to user
         IERC20(knabToken).safeTransfer(_msgSender(), transferAmount);
         tokenSold += transferAmount;
+        if(keccak256(abi.encodePacked(refId))!=keccak256(abi.encodePacked(""))){
+        ITokenTracker(tokenTracker).increase(index, refId, transferAmount);
+        }
         update(_amount);
     }
 
@@ -815,9 +828,12 @@ contract ICO is ReentrancyGuard,Context2{
     
     function crowdSaleEnd() public onlyBeneficiary{
         require(block.timestamp > END_TIME,"!!CrowdSale not Ended");
+        ENDED=1;
+    }
+
+    function claimUnsold() public onlyBeneficiary{
+        require(ENDED==1,'ICO not yet Ended');
         require(IERC20(knabToken).balanceOf(address(this)) != 0,"No KNAB is available to withdraw");
         IERC20(knabToken).safeTransfer(_msgSender(),IERC20(knabToken).balanceOf(address(this)));
     }
-
-
 }
