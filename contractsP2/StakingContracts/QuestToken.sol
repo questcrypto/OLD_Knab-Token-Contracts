@@ -708,7 +708,6 @@ interface ITokenTracker{
 }
 
 contract QuestToken is ERC20 {
-    address owner;
     address SCAddress;
     using SafeERC20 for IERC20;
     uint public index;
@@ -716,7 +715,6 @@ contract QuestToken is ERC20 {
 
     constructor(address sca,uint _index,address _tokenTracker) ERC20("quest", "QUEST") {
         require(_msgSender() != address(0), "owner's address cannot be null");
-        owner = _msgSender();
         SCAddress = sca;
         index = _index;
         tokentracker = _tokenTracker;
@@ -732,12 +730,5 @@ contract QuestToken is ERC20 {
         _burn(msg.sender, amount*10**12);
         IERC20(SCAddress).safeTransfer(msg.sender, amount);
     }
-    function takeSC (uint amount) public onlyOwner {
-        require(amount>0,"amount must be greater than 0");
-        IERC20(SCAddress).transfer(msg.sender, amount);
-    }
-    modifier onlyOwner() {
-        require(msg.sender == owner, "!owner");
-        _;
-    }
+   
 }
